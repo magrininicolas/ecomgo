@@ -13,10 +13,10 @@ func NewPostgreSQLStorage() (*sqlx.DB, error) {
 	connString := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		config.Envs.PublicHost, config.Envs.Port, config.Envs.DBUser, config.Envs.DBPasswd, config.Envs.DBName)
-	db, err := sqlx.Open("postgres", connString)
+	db, err := sqlx.Connect("postgres", connString)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	log.Println("DB successfully connected")
 	return db, nil
 }
