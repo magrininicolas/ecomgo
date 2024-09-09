@@ -21,7 +21,8 @@ func NewApiServer(addr string, db *sqlx.DB) *APIServer {
 func (s *APIServer) Run() error {
 	r := chi.NewRouter()
 
-	userHandler := user.NewHandler()
+	userStore := user.NewStore(s.db)
+	userHandler := user.NewHandler(userStore)
 	r.Route("/api/v1/users", userHandler.RegisterRoutes)
 
 	log.Println("Listening on", s.addr)
