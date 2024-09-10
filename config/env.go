@@ -18,10 +18,9 @@ type Config struct {
 
 func initConfig() Config {
 	godotenv.Load()
-
 	return Config{
 		PublicHost: getEnv("PUBLIC_HOST", "http://localhost"),
-		Port:       getEnv("PORT", "3000"),
+		Port:       getEnv("PORT", "5432"),
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPasswd:   getEnv("DB_PASSWD", "password"),
 		DBName:     getEnv("DB_NAME", "ecomgo"),

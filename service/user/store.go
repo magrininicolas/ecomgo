@@ -17,17 +17,11 @@ func NewStore(db *sqlx.DB) *Store {
 }
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
-	rows, err := s.db.Queryx("select * from users where email = $1", email)
+	u := &types.User{}
+
+	err := s.db.Get(u, "select * from users where email=$1", email)
 	if err != nil {
 		return nil, err
-	}
-
-	u := &types.User{}
-	for rows.Next() {
-		u, err = scanRowIntoUser(rows)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if u.ID == uuid.Nil {
@@ -38,17 +32,11 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 }
 
 func (s *Store) GetUserById(id uuid.UUID) (*types.User, error) {
-	rows, err := s.db.Queryx("select * from users where id = $1", id)
+	u := &types.User{}
+
+	err := s.db.Get(u, "select * from users where id=$1", id)
 	if err != nil {
 		return nil, err
-	}
-
-	u := &types.User{}
-	for rows.Next() {
-		u, err = scanRowIntoUser(rows)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if u.ID == uuid.Nil {
@@ -59,23 +47,13 @@ func (s *Store) GetUserById(id uuid.UUID) (*types.User, error) {
 }
 
 func (s *Store) CreateUser(user *types.User) error {
-	return nil
-}
+	query := `insert into users (id, first_name, last_name, email, password, created_at, updated_at)
+		values($1, $2, $3, $4, $5, $6, $7)`
 
-func scanRowIntoUser(rows *sqlx.Rows) (*types.User, error) {
-	u := &types.User{}
-	err := rows.Scan(
-		&u.ID,
-		&u.FirstName,
-		&u.LastName,
-		&u.Email,
-		&u.Password,
-		&u.CreatedAt,
-		&u.UpdatedAt,
-	)
+	_, err := s.db.Exec(query,
+		user.ID, user.FirstName, user.LastName, user.Email, user.Password, user.CreatedAt, user.UpdatedAt)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return u, nil
+	return nil
 }

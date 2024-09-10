@@ -3,10 +3,9 @@ package user
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
+	"github.com/go-playground/validator/v10"
 	"github.com/magrininicolas/ecomgo/service/auth"
 	"github.com/magrininicolas/ecomgo/types"
 	"github.com/magrininicolas/ecomgo/utils"
@@ -30,36 +29,48 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var payload types.RegisterUserPayload
-	if err := utils.ParseJSON(r, payload); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err)
+
+	err := utils.ParseJSON(r, &payload)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("MALFORMATED JSON BODY"))
 		return
 	}
-	_, err := h.store.GetUserByEmail(payload.Email)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("USER WITH EMAIL %s ALREADY EXISTS", payload.Email))
+
+	if err := utils.Validate.Struct(payload); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload %v", errors))
 		return
+	}
+
+	if ok, err := h.emailExists(payload.Email); ok {
+		utils.WriteJSON(w, http.StatusBadRequest, err)
 	}
 
 	hashedPasswd, err := auth.HashPasswd(payload.Password)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("ERROR WHILE HASHING PASSWORD %s", err.Error()))
 		return
 	}
 
-	err = h.store.CreateUser(&types.User{
-		ID:        uuid.New(),
-		FirstName: payload.FirstName,
-		LastName:  payload.LastName,
-		Email:     payload.Email,
-		Password:  hashedPasswd,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	})
-
+	newUser := types.NewUser(payload.FirstName, payload.LastName, payload.Email, hashedPasswd)
+	err = h.store.CreateUser(newUser)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusCreated, nil)
+	utils.WriteJSON(w, http.StatusCreated, types.RegisterUserResponse{
+		FirstName: newUser.FirstName,
+		LastName:  newUser.LastName,
+		Email:     newUser.Email,
+		CreatedAt: newUser.CreatedAt,
+	})
+}
+
+func (h *Handler) emailExists(email string) (bool, error) {
+	_, err := h.store.GetUserByEmail(email)
+	if err != nil {
+		return false, fmt.Errorf("USER WITH EMAIL %s DONT EXISTS", email)
+	}
+	return true, fmt.Errorf("USER WITH EMAIL %s ALREADY EXISTS", email)
 }
