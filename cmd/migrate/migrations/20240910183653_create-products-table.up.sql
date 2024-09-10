@@ -6,4 +6,4 @@ create table if not exists products(
     "quantity" integer not null,
     "created_at" timestamp not null,
     "updated_at" timestamp not null
-)
+);
