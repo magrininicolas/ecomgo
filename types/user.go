@@ -13,13 +13,13 @@ type UserStore interface {
 }
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	FirstName string    `json:"firstName"`
-	LastName  string    `json:"lastName"`
-	Email     string    `json:"email"`
-	Password  string    `json:"-"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID        uuid.UUID `json:"id" db:"id"`
+	FirstName string    `json:"firstName" db:"first_name"`
+	LastName  string    `json:"lastName" db:"last_name"`
+	Email     string    `json:"email" db:"email"`
+	Password  string    `json:"-" db:"password"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 type RegisterUserPayload struct {
@@ -34,6 +34,11 @@ type RegisterUserResponse struct {
 	LastName  string    `json:"lastName"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+type LoginUserPayload struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=3,max=50"`
 }
 
 func NewUser(firstName, lastName, email, password string) *User {
