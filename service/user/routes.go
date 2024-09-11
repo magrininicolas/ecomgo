@@ -25,6 +25,33 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
+	var payload types.LoginUserPayload
+
+	err := utils.ParseJSON(r, &payload)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("MALFORMATED JSON BODY"))
+		return
+	}
+
+	err = utils.Validate.Struct(payload)
+	if err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("INVALID PAYLOAD %v", errors))
+		return
+	}
+
+	u, err := h.store.GetUserByEmail(payload.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("USER NOT FOUND, INVALID EMAIL OR PASSWORD"))
+		return
+	}
+
+	if !auth.ComparePassword(u.Password, payload.Password) {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("USER NOT FOUND, INVALID EMAIL OR PASSWORD"))
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": "jwt auth under construction"})
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -38,12 +65,14 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if err := utils.Validate.Struct(payload); err != nil {
 		errors := err.(validator.ValidationErrors)
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload %v", errors))
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("INVALID PAYLOAD %v", errors))
 		return
 	}
 
-	if ok, err := h.emailExists(payload.Email); ok {
-		utils.WriteJSON(w, http.StatusBadRequest, err)
+	_, err = h.store.GetUserByEmail(payload.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("USER ALREADY EXISTS FOR EMAIL: %s", payload.Email))
+		return
 	}
 
 	hashedPasswd, err := auth.HashPasswd(payload.Password)
@@ -65,12 +94,4 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		Email:     newUser.Email,
 		CreatedAt: newUser.CreatedAt,
 	})
-}
-
-func (h *Handler) emailExists(email string) (bool, error) {
-	_, err := h.store.GetUserByEmail(email)
-	if err != nil {
-		return false, fmt.Errorf("USER WITH EMAIL %s DONT EXISTS", email)
-	}
-	return true, fmt.Errorf("USER WITH EMAIL %s ALREADY EXISTS", email)
 }
